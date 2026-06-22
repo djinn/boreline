@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-linux:
+    name: Build & Test (Linux)
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        compiler: [gcc-14, clang-18]
+        include:
+          - compiler: gcc-14
+            cc: gcc
+          - compiler: clang-18
+            cc: clang
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev cmake ninja-build
+          sudo apt-get install -y gcc-14 clang-18 || true
+
+      - name: Configure
+        env:
+          CC: ${{ matrix.cc }}
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBORELINE_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Configure with sanitizers
+        if: matrix.cc == 'clang'
+        run: |
+          cmake -B build-asan -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DBORELINE_WITH_ASAN=ON \
+            -DBORELINE_WITH_UBSAN=ON
+
+      - name: Build with sanitizers
+        if: matrix.cc == 'clang'
+        run: cmake --build build-asan
+
+      - name: Test with sanitizers
+        if: matrix.cc == 'clang'
+        run: ctest --test-dir build-asan --output-on-failure
+
+  build-macos:
+    name: Build & Test (macOS)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install openssl@3 cmake ninja || true
+
+      - name: Configure
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBORELINE_BUILD_TESTS=ON \
+            -DOPENSSL_ROOT_DIR=$(brew --prefix openssl@3)
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  fuzz:
+    name: Fuzz smoke test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y clang libssl-dev
+      - name: Build fuzz target
+        run: |
+          clang -fsanitize=fuzzer,address,undefined -g \
+            -I include \
+            src/common/protocol.c tests/fuzz/fuzz_protocol.c \
+            -o /tmp/fuzz_protocol
+      - name: Smoke fuzz
+        run: |
+          /tmp/fuzz_protocol -runs=1000 -max_len=4096 || true
