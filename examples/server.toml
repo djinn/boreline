@@ -1,0 +1,43 @@
+# Example boreline server configuration
+# Copy to /etc/boreline/server.toml and customize
+
+[boreline]
+schema_version = 1
+
+[server]
+# Public ingress listener
+public_bind = "0.0.0.0"
+public_port = 443
+
+# Outbound client tunnel listener
+tunnel_bind = "0.0.0.0"
+tunnel_port = 8443
+
+# Wildcard domain
+domain = "tunnel.example.com"
+
+# TLS certificates
+tls_certificate = "/etc/boreline/cert.pem"
+tls_key = "/etc/boreline/key.pem"
+
+# Token store (one token per line, hashed at rest)
+token_store = "/etc/boreline/tokens"
+
+# Allowed TCP ports for public exposure (empty = none by default)
+allowed_public_tcp_ports = ""
+
+# Limits
+max_sessions = 1024
+max_streams_per_session = 256
+max_memory_per_session = 67108864  # 64 MB
+
+# Timeouts (milliseconds)
+request_timeout_ms = 30000
+idle_timeout_ms = 60000
+
+# Logging
+log_level = "info"
+
+# Metrics endpoint (localhost only by default)
+metrics_bind = "127.0.0.1"
+metrics_port = 9090

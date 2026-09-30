@@ -1,0 +1,23 @@
+# Example boreline client configuration
+# Copy to ~/.config/boreline/client.toml and customize
+
+[boreline]
+schema_version = 1
+
+[client]
+# Server address
+server_address = "tunnel.example.com"
+server_port = 8443
+
+# TLS trust store
+certificate_trust = "/etc/ssl/certs/ca-certificates.crt"
+
+# Token source (file path, environment variable, or OS secret store)
+token_source = "/etc/boreline/client.token"
+
+# Reconnection policy (milliseconds)
+reconnect_base_ms = 500
+reconnect_max_ms = 30000
+
+# Limits
+max_local_connections = 1024
