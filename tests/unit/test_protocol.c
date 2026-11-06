@@ -128,16 +128,25 @@ static void test_oversize_payload(void)
     boreline_parser_t *p = boreline_parser_create();
     ASSERT(p != NULL, "create parser");
 
+    /* Craft the header bytes manually (encode_header validates and would
+     * reject the oversize length, so we bypass it to test the parser
+     * side of validation). */
     uint8_t buf[BORELINE_FRAME_HEADER_SIZE];
-    boreline_frame_header_t hdr;
-    memset(&hdr, 0, sizeof(hdr));
-    hdr.magic = BORELINE_MAGIC;
-    hdr.version = BORELINE_VERSION_PROTO;
-    hdr.type = BORELINE_FRAME_DATA;
-    hdr.payload_length = BORELINE_MAX_PAYLOAD + 1;
+    memset(buf, 0, sizeof(buf));
+    buf[0] = (uint8_t)(BORELINE_MAGIC >> 8);
+    buf[1] = (uint8_t)(BORELINE_MAGIC & 0xFF);
+    buf[2] = BORELINE_VERSION_PROTO;
+    buf[3] = BORELINE_FRAME_DATA;
+    buf[4] = 0; buf[5] = 0;            /* flags */
+    buf[6] = 0; buf[7] = 0;            /* reserved */
+    buf[8] = 0; buf[9] = 0;            /* stream id high */
+    buf[10] = 0; buf[11] = 1;          /* stream id = 1 */
+    buf[12] = (uint8_t)((BORELINE_MAX_PAYLOAD + 1) >> 24);
+    buf[13] = (uint8_t)((BORELINE_MAX_PAYLOAD + 1) >> 16);
+    buf[14] = (uint8_t)((BORELINE_MAX_PAYLOAD + 1) >> 8);
+    buf[15] = (uint8_t)((BORELINE_MAX_PAYLOAD + 1) & 0xFF);
 
-    boreline_encode_header(&hdr, buf);
-    int rc = boreline_parser_feed(p, buf, BORELINE_FRAME_HEADER_SIZE);
+    int rc = boreline_parser_feed(p, buf, sizeof(buf));
     ASSERT(rc == BORELINE_OK, "feed oversize header");
 
     boreline_frame_header_t got;
